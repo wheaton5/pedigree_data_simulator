@@ -78,3 +78,21 @@ optional arguments:
                         separated prior to breaking emulsion. Improves links
                         per molecule
 ```
+
+```
+usage: sim_long_reads [-h] -o OUTPUT -f FASTAS [FASTAS ...] -c COVERAGE -l
+                      LENGTH_MEAN
+
+simulate long reads from pedigree fastas. wrapper for PBSIM.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -o OUTPUT, --output OUTPUT
+                        output prefix
+  -f FASTAS [FASTAS ...], --fastas FASTAS [FASTAS ...]
+                        reads will be generated equally from each fasta file
+  -c COVERAGE, --coverage COVERAGE
+                        coverage to generate
+  -l LENGTH_MEAN, --length_mean LENGTH_MEAN
+                        long read length
+```
