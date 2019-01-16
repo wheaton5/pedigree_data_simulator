@@ -1,12 +1,14 @@
 # pedigree_data_simulator
 
-Requirements: 
-
+Requirements for parental_haplotypes and f1_haplotypes:
+```
 Python2.7
 pysam
 pyfasta
 argparse
 numpy
+```
+
 
 ```
 parental_haplotypes -h
