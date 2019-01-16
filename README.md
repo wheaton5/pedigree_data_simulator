@@ -46,3 +46,35 @@ optional arguments:
   -n NUM_OFFSPRING, --num_offspring NUM_OFFSPRING
                         number haplotype-pairs to generage
 ```
+
+```
+usage: sim_short_reads [-h] -o OUTPUT_DIRECTORY -f FASTAS [FASTAS ...] -c
+                       COVERAGE -l READ_LENGTH [--tenx TENX]
+                       [--DNA_input DNA_INPUT]
+                       [--molecule_length MOLECULE_LENGTH]
+                       [--subset_partitions SUBSET_PARTITIONS]
+
+simulate short reads from pedigree fastas
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -o OUTPUT_DIRECTORY, --output_directory OUTPUT_DIRECTORY
+                        output prefix
+  -f FASTAS [FASTAS ...], --fastas FASTAS [FASTAS ...]
+                        reads will be generated equally from each fasta file
+  -c COVERAGE, --coverage COVERAGE
+                        coverage to generate
+  -l READ_LENGTH, --read_length READ_LENGTH
+                        short read length
+  --tenx TENX           generate linked reads using LR-SIM
+  --DNA_input DNA_INPUT
+                        input DNA amount in ng. Ignored if --tenx not set.
+                        Lower numbers improves links per molecule. Reasonable
+                        values are 0.25-2.0
+  --molecule_length MOLECULE_LENGTH
+                        average long molecule length for linked reads
+  --subset_partitions SUBSET_PARTITIONS
+                        simulate library prep on subset of partitions
+                        separated prior to breaking emulsion. Improves links
+                        per molecule
+```
