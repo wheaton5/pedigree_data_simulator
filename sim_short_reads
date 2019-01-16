@@ -1,0 +1,50 @@
+#!/usr/bin/env python 
+
+import argparse
+import subprocess
+import glob
+import pyfasta
+
+parser = argparse.ArgumentParser(description='simulate short reads from pedigree fastas')
+
+parser.add_argument('-o','--output_directory',required=True,help="output prefix")
+parser.add_argument('-f', '--fastas', required=True, nargs='+', help="reads will be generated equally from each fasta file")
+parser.add_argument('-c', '--coverage', required=True, type=float, help="coverage to generate")
+parser.add_argument('-l', '--read_length', required = True, type=int, default=100, help = "short read length")
+parser.add_argument('--tenx', required=False, default=False, type=bool, help="generate linked reads using LR-SIM")
+parser.add_argument('--DNA_input', required=False, default=0.6,type=float, help="input DNA amount in ng. Ignored if --tenx not set. Lower numbers improves links per molecule. Reasonable values are 0.25-2.0")
+parser.add_argument('--molecule_length', required=False, default=100,type=int, help="average long molecule length for linked reads")
+parser.add_argument('--subset_partitions', required=False, default = 1.0, type = float, help="simulate library prep on subset of partitions separated prior to breaking emulsion. Improves links per molecule")
+
+
+args = parser.parse_args()
+
+genome_size = 0
+
+fasta = pyfasta.Fasta(args.fastas[0])
+for key in fasta.keys():
+    genome_size += len(fasta[key])
+if len(args.fastas) < 2:
+    print "requires at least 2 fastas to simulate diploid"
+
+if args.tenx:
+    bp_per_ng = 300*3200000000 # roughly
+    bp = args.DNA_input*bp_per_ng
+
+    genome_equivalents = bp/float(genome_size)
+
+    partitions = 1500000
+    molecules_per_partition = bp/float(args.molecule_length*1000)/partitions
+    print "genome equivalents "+str(genome_equivalents)+" prior to subset partitions, "+str(args.subset_partitions*genome_equivalents)+" after subset partitions"
+    print "molecules per partition "+str(molecules_per_partition)
+    reads = args.coverage*genome_size / (args.read_length*2.0)
+    print "reads "+str(int(reads/1000000))+" million reads"
+
+    molecule_coverage = args.coverage/(genome_equivalents*args.subset_partitions)
+    estimated_lpm = args.coverage/(genome_equivalents*args.subset_partitions)*(args.molecule_length*1000)/100.0
+    print "physical molecule coverage "+str(molecule_coverage)
+    print "estimated links per molecule "+str(estimated_lpm)
+    command = ['perl','/lustre/scratch118/malaria/team222/hh5/phd_project/simulation/simulators/LRSIM/simulateLinkedReads.pl','-g',args.fastas[0]+","+args.fastas[1],'-o','-c',"/lustre/scratch118/malaria/team222/hh5/phd_project/simulation/simulators/LRSIM/test/fragmentSizesList",'-b',"/lustre/scratch118/malaria/team222/hh5/phd_project/simulation/simulators/LRSIM/4M-with-alts-february-2016.txt","-x",str(int(reads/1000000)),'-f',str(args.molecule_length),'-t',str(int(partitions*args.subset_partitions/1000.0)),'-m',str(int(molecules_per_partition)),'-p',args.output_directory]
+    print " ".join(command)
+    subprocess.check_call(command)
+    

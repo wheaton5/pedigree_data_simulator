@@ -1,0 +1,69 @@
+#!/usr/bin/env python 
+
+import pyfasta
+import argparse
+import random
+random.seed(4) # guaranteed random seed by dice roll ;) https://xkcd.com/221
+import subprocess
+import numpy as np
+
+
+parser = argparse.ArgumentParser(description='Build f1 haplotype-pairs given parental haplotypes and recombination rate')
+
+parser.add_argument('-f', '--fasta', required=True, help="base fasta file")
+parser.add_argument('-d', '--parental_directory', required=True, help="parental haplotype directory (from parental_haplotypes)")
+parser.add_argument('-r','--recombination_rate',type=float, required=False, default=1.0/10000000.0, help="recombination rate eg 1.0/10000000.0")
+parser.add_argument('-n','--num_offspring',required=False, default=1,type=int,help="number haplotype-pairs to generage")
+#parser.add_argument('--subsample_vcf',required=False,type=float,default=1.0)
+
+args = parser.parse_args()
+print args.fasta
+assert(args.recombination_rate < 0.001 and args.recombination_rate >= 0.0)
+subprocess.check_call(['mkdir',args.parental_directory+"/offspring"])
+
+fasta = pyfasta.Fasta(args.fasta)
+variants = open(args.parental_directory+"/parents.variants")
+maternal_haplotype = random.randint(0,1)
+paternal_haplotype = random.randint(0,1)
+for childex in range(args.num_offspring):
+    pos = 0
+    index = 0
+    print "child "+str(childex)
+    with open(args.parental_directory+"/offspring/offspring_"+str(childex)+"_paternal.fasta",'w') as paternal_hap:
+        with open(args.parental_directory+"/offspring/offspring_"+str(childex)+"_maternal.fasta",'w') as maternal_hap:
+            last_chrom = None
+            next_maternal_recomb = np.random.geometric(args.recombination_rate)
+            next_paternal_recomb = np.random.geometric(args.recombination_rate)
+            vardex = 0
+            for line in variants:
+                vardex += 1
+                if vardex % 100000 == 0:
+                    print vardex
+                tokens = line.strip().split()
+                chrom = tokens[0]
+                if not chrom == last_chrom:
+                    print chrom
+                    if not last_chrom == None:
+                        paternal_hap.write(fasta[last_chrom][index:len(fasta[last_chrom])]+"\n")
+                        maternal_hap.write(fasta[last_chrom][index:len(fasta[last_chrom])]+"\n")
+                    paternal_hap.write(">"+chrom+"\n")
+                    maternal_hap.write(">"+chrom+"\n")
+                    
+                    index = 0
+                    next_maternal_recomb = np.random.geometric(args.recombination_rate)
+                    next_paternal_recomb = np.random.geometric(args.recombination_rate)
+                    last_chrom = chrom
+                pos = int(tokens[1])
+                while pos > next_maternal_recomb:
+                    next_maternal_recomb += np.random.geometric(args.recombination_rate) 
+                    maternal_haplotype = 1-maternal_haplotype
+                while pos > next_paternal_recomb:
+                    next_paternal_recomb += np.random.geometric(args.recombination_rate)
+                    paternal_haplotype = 1-paternal_haplotype
+                paternal_hap.write(fasta[chrom][index:pos-1])
+                maternal_hap.write(fasta[chrom][index:pos-1])
+                paternal_hap.write(tokens[4+paternal_haplotype])
+                maternal_hap.write(tokens[2+maternal_haplotype])
+                index = pos
+            paternal_hap.write(fasta[last_chrom][index:len(fasta[last_chrom])]+"\n")
+            maternal_hap.write(fasta[last_chrom][index:len(fasta[last_chrom])]+"\n")

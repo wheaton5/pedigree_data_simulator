@@ -1,0 +1,149 @@
+#!/usr/bin/env python 
+
+import pyfasta
+import argparse
+import random
+random.seed(4) # guaranteed random seed by dice roll ;) https://xkcd.com/221
+import subprocess
+
+import pysam
+
+parser = argparse.ArgumentParser(description='Create parental haplotypes for pedigree given fasta and population bcf')
+
+parser.add_argument('-f', '--fasta', required=True,help="base fasta file")
+parser.add_argument('-b','--bcf', required=True, help="population bcf from which to pull variants")
+parser.add_argument('-o','--out_dir',required=True, help="output directory (not yet created)")
+#parser.add_argument('--subsample_vcf',required=False,type=float,default=1.0)
+parser.add_argument('--het_rate',required=False, type=float, help="override heterozygous variant rate from population bcf")
+
+args = parser.parse_args()
+print args.fasta
+print args.bcf
+subprocess.check_call(['mkdir',args.out_dir])
+
+fasta = pyfasta.Fasta(args.fasta)
+size = 0
+for key in fasta.keys():
+    size += len(fasta[key])
+
+if not args.het_rate == 1.0:
+    bcf = pysam.VariantFile(args.bcf)
+    expected_hets = 0.0
+    for rec in bcf:
+        p = rec.info.get("AF")
+        if not type(p) == float:
+            continue
+        expected_hets += 2.0*p*(1.0-p)
+    expected_het_rate = expected_hets / float(size)
+    het_multiplier = args.het_rate/expected_het_rate
+else:
+    het_multiplier = 1.0
+print 'het mulitplier '+str(het_multiplier)
+bcf = pysam.VariantFile(args.bcf)
+
+p_hets = 0
+m_hets = 0
+pm_diffs = 0
+
+with open(args.out_dir+"/p1.fasta",'w') as p1:
+    with open(args.out_dir+"/p2.fasta",'w') as p2:
+        with open(args.out_dir+"/m1.fasta",'w') as m1:
+            with open(args.out_dir+"/m2.fasta",'w') as m2:
+                #for key in fasta.keys():
+                with open(args.out_dir+"/parents.variants",'w') as variants:
+                    last_chrom = None
+                    index = 0
+                    print "ready"
+                    rec_index = 0
+                    for rec in bcf:
+                        rec_index += 1
+                        if rec_index % 100000 == 0:
+                            print rec_index
+                        chrom = rec.chrom
+                        if chrom != last_chrom:
+                            print chrom
+                            if not last_chrom == None:
+                                p1.write(fasta[last_chrom][index:len(fasta[last_chrom])]+"\n") 
+                                p2.write(fasta[last_chrom][index:len(fasta[last_chrom])]+"\n") 
+                                m1.write(fasta[last_chrom][index:len(fasta[last_chrom])]+"\n") 
+                                m2.write(fasta[last_chrom][index:len(fasta[last_chrom])]+"\n") 
+                            p1.write(">"+chrom+"\n")
+                            p2.write(">"+chrom+"\n")
+                            m1.write(">"+chrom+"\n")
+                            m2.write(">"+chrom+"\n")
+                            index = 0
+                            last_chrom = chrom
+                        pos = rec.pos
+                        p1.write(fasta[chrom][index:pos-1])
+                        p2.write(fasta[chrom][index:pos-1])
+                        m1.write(fasta[chrom][index:pos-1])
+                        m2.write(fasta[chrom][index:pos-1])
+                        index = pos
+                        #num_alleles = [0,0]
+                        
+                        #for sample in rec.samples.values():
+                        #    num_alleles[min(1,sample.allele_indices[0])] += 1
+                        #    num_alleles[min(1,sample.allele_indices[1])] += 1
+
+                        #ref = num_alleles[0]
+                        #alt = num_alleles[1]
+                        alleles = [str(rec.ref),str(rec.alts[0])]
+                        alt_rate = rec.info.get("AF")#*args.alt_rate_mult #ref/float(ref+alt)
+                        het1 = alt_rate*(1.0-alt_rate)*het_multiplier
+                        het2 = het1+het1
+                        rand = random.random()
+                        if rand < het1:
+                            m1_allele = alleles[0]
+                            m2_allele = alleles[1]
+                        elif rand < het2:
+                            m1_allele = alleles[1]
+                            m2_allele = alleles[0]
+                        elif rand  < het2 + alt_rate * alt_rate:
+                            m1_allele = alleles[1]
+                            m2_allele = alleles[1]
+                        else:
+                            m1_allele = alleles[0]
+                            m2_allele = alleles[0]    
+                        rand = random.random()
+                        if rand < het1:
+                            p1_allele = alleles[0]
+                            p2_allele = alleles[1]
+                        elif rand < het2:
+                            p1_allele = alleles[1]
+                            p2_allele = alleles[0]
+                        elif rand < het2 + alt_rate * alt_rate:
+                            p1_allele = alleles[1]
+                            p2_allele = alleles[1]
+                        else:
+                            p1_allele = alleles[0]
+                            p2_allele = alleles[0]    
+                        variants.write("\t".join([chrom,str(pos),m1_allele,m2_allele,p1_allele,p2_allele])+"\n")
+                        #m1_allele = alleles[int(random.random() < alt_rate)] # 
+                        #m2_allele = alleles[int(random.random() < alt_rate)]
+                        #p1_allele = alleles[int(random.random() < alt_rate)]
+                        #p2_allele = alleles[int(random.random() < alt_rate)]
+                        m1.write(m1_allele)
+                        m2.write(m2_allele)
+                        p1.write(p1_allele)
+                        p2.write(p2_allele)
+                    
+                        m_het = not m1_allele == m2_allele
+                        p_het = not p1_allele == p2_allele
+                        if m_het:
+                            m_hets += 1
+                        if p_het:
+                            p_hets += 1
+                        if not(m_het and p_het) and not(p1_allele == p2_allele and p1_allele == m1_allele and p1_allele == m2_allele):
+                            pm_diffs += 1
+            
+                    p1.write(fasta[last_chrom][index:len(fasta[last_chrom])]+"\n")
+                    p2.write(fasta[last_chrom][index:len(fasta[last_chrom])]+"\n")
+                    m1.write(fasta[last_chrom][index:len(fasta[last_chrom])]+"\n")
+                    m2.write(fasta[last_chrom][index:len(fasta[last_chrom])]+"\n")
+ 
+                
+print "maternal hets "+str(m_hets)
+print "paternal hets "+str(p_hets)                    
+print "parental differences "+str(pm_diffs)
+
+

@@ -1,0 +1,24 @@
+#!/usr/bin/env python 
+
+import argparse
+import subprocess
+import glob
+import pyfasta
+
+parser = argparse.ArgumentParser(description='simulate long reads from pedigree fastas. wrapper for PBSIM.')
+
+parser.add_argument('-o','--output',required=True,help="output prefix")
+parser.add_argument('-f', '--fastas', required=True, nargs='+', help="reads will be generated equally from each fasta file")
+parser.add_argument('-c', '--coverage', required=True, type=float, help="coverage to generate")
+parser.add_argument('-l', '--length_mean', required = True, type=float, default=10000.0, help = "long read length")
+
+
+args = parser.parse_args()
+coverage_per = args.coverage/float(len(args.fastas))
+names = []
+for index, fasta in enumerate(args.fastas):
+    name = args.output+"_tmp_"+str(index)
+    names.append(name)
+    subprocess.check_call(["PBSIM","--data-type","CLR","--length-mean",str(args.length_mean),"--prefix",name,"--depth",str(coverage_per), "--model_qc", "/lustre/scratch118/malaria/team222/hh5/phd_project/simulation/simulators/PBSIM-PacBio-Simulator/data/model_qc_clr", fasta])
+with open(args.output,'w') as out:
+    subprocess.check_call(["cat"]+names,stdout=out)
