@@ -46,7 +46,12 @@ optional arguments:
   -n NUM_OFFSPRING, --num_offspring NUM_OFFSPRING
                         number haplotype-pairs to generage
 ```
-
+Requirements for sim_short_reads:
+Python2.7
+argparse
+glob
+pyfasta
+LRSIM (https://github.com/aquaskyline/LRSIM)
 ```
 usage: sim_short_reads [-h] -o OUTPUT_DIRECTORY -f FASTAS [FASTAS ...] -c
                        COVERAGE -l READ_LENGTH [--tenx TENX]
@@ -78,6 +83,11 @@ optional arguments:
                         separated prior to breaking emulsion. Improves links
                         per molecule
 ```
+Requirements for sim_long_reads:
+Python2.7
+glob
+pyfasta
+PBSIM (https://github.com/pfaucon/PBSIM-PacBio-Simulator)
 
 ```
 usage: sim_long_reads [-h] -o OUTPUT -f FASTAS [FASTAS ...] -c COVERAGE -l
